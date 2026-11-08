@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Educational breast cancer classification dashboard using the Wisconsin diagnostic dataset.">
+  <title>Breast Cancer Prediction | Research Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Breast Cancer Prediction home">
+      <span class="brand-mark" aria-hidden="true">B</span>
+      <span>Onco<span class="brand-light">lytics</span><small>ML RESEARCH DASHBOARD</small></span>
+    </a>
+    <span class="dataset-chip"><span class="status-dot"></span> Wisconsin diagnostic dataset</span>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div>
+        <p class="eyebrow">MACHINE LEARNING · CLASSIFICATION</p>
+        <h1>Breast cancer<br><span>prediction dashboard</span></h1>
+        <p class="hero-copy">Explore a machine-learning classification model trained on cell-nuclei measurements. Enter a complete set of features to see its educational prediction.</p>
+      </div>
+      <div class="hero-note">
+        <span class="note-icon" aria-hidden="true">i</span>
+        <p><strong>For educational use only</strong><br>This model is not a medical device and cannot diagnose or guide treatment.</p>
+      </div>
+    </section>
+
+    {% if prediction %}
+    <section id="prediction-result" class="prediction-result {{ prediction.label }}" role="status" aria-live="polite" tabindex="-1">
+      <div>
+        <span class="result-kicker">MODEL PREDICTION</span>
+        <h2>{{ prediction.title }}</h2>
+        <p>{{ prediction.detail }} This educational tool cannot diagnose or rule out cancer. Please consult a healthcare professional for medical advice.</p>
+      </div>
+      <span class="result-badge">{{ prediction.label|upper }}</span>
+    </section>
+    {% endif %}
+
+    <section class="metrics" aria-label="Model overview">
+      <article class="metric-card">
+        <span class="metric-label">TUNED SVM TEST ACCURACY</span>
+        <strong>{{ "%.1f"|format(accuracy * 100) }}<span>%</span></strong>
+        <small>Held-out test set · 20%</small>
+      </article>
+      <article class="metric-card">
+        <span class="metric-label">MODEL INPUTS</span>
+        <strong>30</strong>
+        <small>Cell-nuclei measurements</small>
+      </article>
+      <article class="metric-card">
+        <span class="metric-label">TRAINING RECORDS</span>
+        <strong>569</strong>
+        <small>Wisconsin diagnostic dataset</small>
+      </article>
+      <article class="metric-card">
+        <span class="metric-label">CLASSIFIER</span>
+        <strong class="metric-model">Tuned SVM</strong>
+        <small>Standardized · grid-searched</small>
+      </article>
+    </section>
+
+    {% if error %}
+    <div class="error-banner" role="alert">{{ error }}</div>
+    {% endif %}
+
+    <div class="content-grid">
+      <section class="panel input-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">TRY THE CLASSIFIER</p>
+            <h2>Enter measurements</h2>
+          </div>
+          <span class="required-note">30 values required</span>
+        </div>
+        <p class="panel-copy">Use the measurement values from a dataset record. All fields are required and must be non-negative.</p>
+        <div class="example-tools">
+          <span>Quick-fill dataset averages</span>
+          <button type="button" class="text-button" data-profile="benign">Benign profile</button>
+          <button type="button" class="text-button" data-profile="malignant">Malignant profile</button>
+        </div>
+
+        <form action="{{ url_for('predict') }}" method="post" id="prediction-form">
+          {% for group in feature_groups %}
+          <fieldset class="feature-group">
+            <legend>{{ group.title }}</legend>
+            <div class="field-grid">
+              {% for field in group.fields %}
+              <label class="field" for="{{ field|replace(' ', '-') }}">
+                <span>{{ field|replace('_', ' ')|title }}</span>
+                <input id="{{ field|replace(' ', '-') }}" name="{{ field }}" type="number" step="any" min="0" required inputmode="decimal" value="{{ form_values.get(field, '') }}">
+              </label>
+              {% endfor %}
+            </div>
+          </fieldset>
+          {% endfor %}
+          <button class="submit-button" type="submit">Run prediction <span aria-hidden="true">→</span></button>
+        </form>
+      </section>
+
+      <aside class="side-column">
+        <section class="panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">MODEL PERFORMANCE</p>
+              <h2>Model comparison</h2>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Model</th><th>Test accuracy</th></tr></thead>
+              <tbody>
+              {% for row in results %}
+                <tr {% if row["Model"] == "SVM" %}class="highlight-row"{% endif %}>
+                  <td>{{ row["Model"] }}</td>
+                  <td>{{ "%.1f"|format(row["Accuracy"] * 100) }}%</td>
+                </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <p class="table-footnote">Each model uses the same stratified 80/20 split.</p>
+        </section>
+
+        <section class="panel methodology">
+          <p class="eyebrow">HOW IT WORKS</p>
+          <h2>From features to prediction</h2>
+          <ol>
+            <li><span>01</span><div><strong>Standardize</strong><small>Scale measurements for the SVM.</small></div></li>
+            <li><span>02</span><div><strong>Classify</strong><small>Choose between benign and malignant patterns.</small></div></li>
+            <li><span>03</span><div><strong>Review</strong><small>Use results only for learning and exploration.</small></div></li>
+          </ol>
+        </section>
+      </aside>
+    </div>
+
+    <section class="panel charts-panel">
+      <div class="panel-heading">
+        <div><p class="eyebrow">DATA EXPLORATION</p><h2>Project visualizations</h2></div>
+      </div>
+      <div class="chart-grid">
+        <figure><img src="{{ url_for('output_image', filename='class_distribution.png') }}" alt="Bar chart showing the dataset's malignant and benign class distribution"><figcaption>Class distribution</figcaption></figure>
+        <figure><img src="{{ url_for('output_image', filename='correlation_heatmap.png') }}" alt="Correlation heatmap of the first ten measurement features"><figcaption>Feature correlation</figcaption></figure>
+        <figure><img src="{{ url_for('output_image', filename='confusion_matrix.png') }}" alt="Confusion matrix for the tuned SVM model"><figcaption>Tuned SVM confusion matrix</figcaption></figure>
+        <figure><img src="{{ url_for('output_image', filename='pca_plot.png') }}" alt="PCA visualization of the measurement dataset"><figcaption>PCA projection</figcaption></figure>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>Oncolytics · Educational machine-learning project</span>
+    <span>Not a medical diagnosis tool</span>
+  </footer>
+
+  <script>
+    const form = document.getElementById("prediction-form");
+    const predictionResult = document.getElementById("prediction-result");
+    if (predictionResult) {
+      requestAnimationFrame(() => {
+        predictionResult.scrollIntoView({ behavior: "smooth", block: "center" });
+        predictionResult.focus({ preventScroll: true });
+      });
+    }
+
+    document.querySelectorAll("[data-profile]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        button.disabled = true;
+        try {
+          const response = await fetch("{{ url_for('examples') }}");
+          if (!response.ok) throw new Error("Could not load the example profiles.");
+          const profiles = await response.json();
+          const profile = profiles[button.dataset.profile];
+          for (const [name, value] of Object.entries(profile)) {
+            const input = form.elements.namedItem(name);
+            if (input) input.value = Number(value).toPrecision(7);
+          }
+        } catch (error) {
+          window.alert(error.message);
+        } finally {
+          button.disabled = false;
+        }
+      });
+    });
+  </script>
+</body>
+</html>
